@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>부동산 지도 애플리케이션</title>
+    <style>
+        /* 지도 스타일 */
+        #map {
+            width: 100%;
+            height: 500px;
+        }
+        #searchForm {
+            margin-bottom: 10px;
+        }
+        #info {
+            margin-top: 10px;
+            display: none;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #fff;
+        }
+        #infoList {
+            margin-top: 20px;
+        }
+        .info-item {
+            border-bottom: 1px solid #ccc;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .delete-button {
+            cursor: pointer;
+            color: red;
+        }
+
+        /* 새로 추가된 스타일: 건물 목록을 지도 아래에 배치 */
+        #sideList {
+            margin-top: 10px;
+            width: 100%;
+            background-color: #f8f8f8;
+            border-top: 1px solid #ccc;
+            padding: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow-y: auto; /* 리스트가 길어지면 스크롤 가능하게 설정 */
+            max-height: 300px; /* 목록의 최대 높이 설정 */
+        }
+    </style>
+    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=c2534f55815a40ef8094f69b5c8a23a3&libraries=services"></script>
+</head>
+<body>
+    <!-- 검색창 -->
+    <form id="searchForm" onsubmit="searchPlace(); return false;">
+        <input type="text" id="searchInput" placeholder="주소나 장소명을 입력하세요" style="width: 300px;">
+        <button type="submit">검색</button>
+    </form>
+
+    <!-- 지도 -->
+    <div id="map"></div>
+
+    <!-- 건물 목록 (지도 아래) -->
+    <div id="sideList">
+        <h2>건물 목록</h2>
+        <div id="infoList">
+            <!-- 동적으로 건물 목록이 추가됩니다 -->
+        </div>
+    </div>
+
+    <!-- 정보 입력 폼 -->
+    <div id="info">
+        <h2>건물 정보</h2>
+        <form id="infoForm">
+            <label for="deposit">보증금:</label>
+            <input type="text" id="deposit" name="deposit"><br>
+            <label for="rent">월세:</label>
+            <input type="text" id="rent" name="rent"><br>
+            <label for="maintenance">관리비:</label>
+            <input type="text" id="maintenance" name="maintenance"><br>
+            <label for="etc">기타:</label>
+            <input type="text" id="etc" name="etc"><br>
+            <button type="button" onclick="saveInfo()">정보 저장</button>
+        </form>
+    </div>
+
+    <script>
+        var map;
+        var ps = new kakao.maps.services.Places();
+        var marker = null;
+        var selectedPosition = null;
+        var infoList = []; // 건물 정보를 저장할 배열
+
+        // 지도 생성 함수
+        function createMap(lat, lng) {
+            var mapContainer = document.getElementById('map');
+            var mapOption = {
+                center: new kakao.maps.LatLng(lat, lng),
+                level: 5
+            };
+
+            map = new kakao.maps.Map(mapContainer, mapOption);
+
+            // 지도 클릭 시 마커와 위치 설정
+            kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
+                var latlng = mouseEvent.latLng;
+                selectedPosition = latlng;
+
+                if (marker) {
+                    marker.setPosition(latlng);
+                } else {
+                    marker = new kakao.maps.Marker({
+                        position: latlng,
+                        map: map
+                    });
+                }
+
+                showInfoForm(latlng.getLat(), latlng.getLng());
+            });
+        }
+
+        // 검색 기능
+        function searchPlace() {
+            var keyword = document.getElementById('searchInput').value.trim();
+
+            if (!keyword) {
+                alert('검색어를 입력하세요.');
+                return;
+            }
+
+            ps.keywordSearch(keyword, function(result, status) {
+                if (status === kakao.maps.services.Status.OK) {
+                    if (result.length > 0) {
+                        var lat = result[0].y;
+                        var lng = result[0].x;
+
+                        var moveLatLon = new kakao.maps.LatLng(lat, lng);
+                        map.setCenter(moveLatLon);
+
+                        if (marker) {
+                            marker.setMap(null);
+                        }
+
+                        marker = new kakao.maps.Marker({
+                            position: moveLatLon,
+                            map: map
+                        });
+
+                        var infowindow = new kakao.maps.InfoWindow({
+                            content: '<div style="padding:5px;">' + result[0].place_name + '</div>'
+                        });
+                        infowindow.open(map, marker);
+
+                    } else {
+                        alert('검색 결과가 없습니다.');
+                    }
+                } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
+                    alert('검색 결과가 없습니다.');
+                } else if (status === kakao.maps.services.Status.ERROR) {
+                    alert('검색 중 오류가 발생했습니다.');
+                }
+            });
+        }
+
+        // 건물 정보 입력 폼 보여주기
+        function showInfoForm(lat, lng) {
+            document.getElementById('info').style.display = 'block';
+            document.getElementById('deposit').value = '';
+            document.getElementById('rent').value = '';
+            document.getElementById('maintenance').value = '';
+            document.getElementById('etc').value = '';
+        }
+
+        // 정보 저장 및 마커, 정보 리스트에 추가
+        function saveInfo() {
+            var deposit = document.getElementById('deposit').value;
+            var rent = document.getElementById('rent').value;
+            var maintenance = document.getElementById('maintenance').value;
+            var etc = document.getElementById('etc').value;
+
+            if (!selectedPosition) {
+                alert('위치를 선택해주세요.');
+                return;
+            }
+
+            var newInfo = {
+                lat: selectedPosition.getLat(),
+                lng: selectedPosition.getLng(),
+                deposit: deposit,
+                rent: rent,
+                maintenance: maintenance,
+                etc: etc,
+                marker: null,
+                infowindow: null
+            };
+
+            var newMarker = new kakao.maps.Marker({
+                position: new kakao.maps.LatLng(newInfo.lat, newInfo.lng),
+                map: map
+            });
+            newInfo.marker = newMarker;
+
+            var newInfowindow = new kakao.maps.InfoWindow({
+                content: `<div style="padding:5px;">보증금: ${deposit}<br>월세: ${rent}<br>관리비: ${maintenance}<br>기타: ${etc}</div>`
+            });
+            newInfowindow.open(map, newMarker);
+            newInfo.infowindow = newInfowindow;
+
+            infoList.push(newInfo);
+            updateInfoList();
+
+            document.getElementById('info').style.display = 'none';
+        }
+
+        // 정보 리스트 업데이트
+        function updateInfoList() {
+            var infoListContainer = document.getElementById('infoList');
+            infoListContainer.innerHTML = '';
+
+            infoList.forEach(function(info, index) {
+                var infoItem = document.createElement('div');
+                infoItem.className = 'info-item';
+                infoItem.innerHTML = `
+                    <div>
+                        <strong>주소:</strong> (${info.lat}, ${info.lng})<br>
+                        <strong>보증금:</strong> ${info.deposit}<br>
+                        <strong>월세:</strong> ${info.rent}<br>
+                        <strong>관리비:</strong> ${info.maintenance}<br>
+                        <strong>기타:</strong> ${info.etc}
+                    </div>
+                    <div class="delete-button" onclick="deleteInfo(${index})">삭제</div>
+                `;
+                infoListContainer.appendChild(infoItem);
+            });
+        }
+
+        // 정보 삭제
+        function deleteInfo(index) {
+            var info = infoList[index];
+            info.marker.setMap(null);
+            info.infowindow.close();
+
+            infoList.splice(index, 1);
+            updateInfoList();
+        }
+
+        // 초기 지도 생성
+        window.onload = function() {
+            createMap(33.450701, 126.570667); // 기본 위치 설정
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "name": "map-app",
+  "version": "1.0.0",
+  "description": "지도 애플리케이션",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^25.9.8",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.example.mapapp",
+    "productName": "MapApp",
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    }
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.7"
+  }
+}
