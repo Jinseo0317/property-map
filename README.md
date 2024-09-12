@@ -6,4 +6,5 @@
 3. npm install electron 명령어로 실행 애플리케이션 패키지 다운로드
 4. npm start로 애플리케이션 실행
 
-![Alt text](C:\Users\jshwang23\Desktop\Beta1.0.JPG)
+
+<img align="left" src="C:\Users\jshwang23\Desktop\Beta1.0.JPG">
